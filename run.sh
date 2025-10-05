@@ -4,4 +4,6 @@ PROMPT="Hello what is your name?"
 THREADS=8
 TOKENS=128
 
-go run . --model "$MODEL" --prompt "$PROMPT" --threads "$THREADS" --n_predict "$TOKENS"
+echo Deepseek thinking...
+go run . --model "$MODEL" --prompt "$PROMPT" --threads "$THREADS" --n_predict "$TOKENS" 2>&1 \
+| awk '/^Assistant:/ {sub(/^Assistant:/, "", $0); reply=$0} END {print reply}'
