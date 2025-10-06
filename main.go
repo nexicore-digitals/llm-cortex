@@ -1,45 +1,31 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"os/exec"
-	"time"
+	"llm-cortex/router"
+	"net/http"
 )
 
 func main() {
-	var modelPath string
-	var prompt string
-	var tokens int
-	var threads int
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", rootHandler)
 
-	flag.StringVar(&modelPath, "model", "./models/deepseek-7b/deepseek-llm-7b-chat.Q4_K_M.gguf", "Path to GGUF model")
-	flag.StringVar(&prompt, "prompt", "Hello what is your name", "Prompt to send to the model")
-	flag.IntVar(&tokens, "n_predict", 128, "Number of tokens to predict")
-	flag.IntVar(&threads, "threads", 8, "Number of threads to use")
-	flag.Parse()
-
-	if prompt == "" {
-		fmt.Println("Error: --prompt is required")
-		return
-	}
-
-	start := time.Now()
-
-	cmd := exec.Command("./bin/llama-cli",
-		"--model", modelPath,
-		"--prompt", prompt,
-		"--n_predict", fmt.Sprintf("%d", tokens),
-		"--threads", fmt.Sprintf("%d", threads),
-	)
-
-	output, err := cmd.CombinedOutput()
+	fmt.Println("Starting server at port 8080")
+	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
-		fmt.Println("Error running llama-cli:", err)
-		return
+		panic(err)
 	}
-	fmt.Println(string(output))
+}
 
-	elapsed := time.Since(start)
-	fmt.Printf("\n⏱️ Eval time: %s\n", elapsed)
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	r.Header.Set("Content-type", "plain/text")
+	fmt.Fprint(w, "Hello from the go root router")
+	params := r.URL.Query()
+	for key, value := range params {
+		fmt.Printf("%s: %s\n", key, value)
+		if key == "run" && value[0] == "true" {
+			llmReply := router.InvokeLLM()
+			fmt.Printf("build: %s\nmodel: %s\nresponse: %s\ntimeElasped: %s\n", llmReply.Build, llmReply.Model, llmReply.Response, llmReply.TimeElasped)
+		}
+	}
 }
