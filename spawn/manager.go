@@ -1,6 +1,7 @@
 package spawn
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -16,6 +17,7 @@ type ShellSession struct {
 	Stdin     io.WriteCloser
 	Stdout    io.ReadCloser
 	CreatedAt time.Time
+	OutputBuf bytes.Buffer
 }
 
 var mu sync.Mutex
@@ -45,6 +47,7 @@ func NewShell(sessions map[string]*ShellSession) (string, error) {
 		Stdin:     stdin,
 		Stdout:    stdout,
 		CreatedAt: time.Now(),
+		OutputBuf: *bytes.NewBuffer([]byte{}),
 	}
 
 	mu.Lock()
@@ -77,10 +80,10 @@ func SendCommand(sessions map[string]*ShellSession, sessionID string, command st
 // This is the function that processes the raw byte output from the shell.
 // In a real application, this is where you'd integrate with a WebSocket
 // or a logging system.
-func OutputHandler(output []byte, sessionID string) {
+func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 	// Convert the raw bytes to a string for display
 	outputString := string(output)
-
+	session.OutputBuf.Write(output)
 	// Print the output clearly labeled with the session ID
 	fmt.Printf("[Output from Session %s]: %s", sessionID, outputString)
 }
@@ -88,21 +91,20 @@ func OutputHandler(output []byte, sessionID string) {
 // StartReading launches a goroutine to continuously read output
 // from the shell's Stdout pipe until the pipe is closed (shell exits).
 // outputHandler is a function that processes the raw byte output.
-func StartReading(session *ShellSession, outputHandler func(output []byte, sessionID string)) {
+func StartReading(session *ShellSession, outputHandler func(output []byte, sessionID string, session *ShellSession)) {
+	// Use a buffer for efficient reading
+	buf := make([]byte, 1024)
 	// Launch the dedicated reader goroutine
 	go func() {
 		defer session.Stdout.Close()
-
-		// Use a buffer for efficient reading
-		buf := make([]byte, 1024)
-
 		for {
 			// Read blocks until data is available or the pipe closes
 			n, err := session.Stdout.Read(buf)
-
 			if n > 0 {
+				mu.Lock()
 				// Pass the read bytes to the handler for processing/logging/sending
-				outputHandler(buf[:n], session.ID)
+				outputHandler(buf[:n], session.ID, session)
+				mu.Unlock()
 			}
 
 			if err != nil {
@@ -111,6 +113,7 @@ func StartReading(session *ShellSession, outputHandler func(output []byte, sessi
 					fmt.Printf("Error reading from session %s: %v\n", session.ID, err)
 				} else {
 					fmt.Printf("Shell session %s finished (EOF).\n", session.ID)
+					return
 				}
 				// Once the pipe closes (EOF or error), the goroutine exits
 				return
