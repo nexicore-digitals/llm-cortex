@@ -82,10 +82,11 @@ func SendCommand(sessions map[string]*ShellSession, sessionID string, command st
 // or a logging system.
 func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 	// Convert the raw bytes to a string for display
-	outputString := string(output)
+	mu.Lock()
 	session.OutputBuf.Write(output)
+	mu.Unlock()
 	// Print the output clearly labeled with the session ID
-	fmt.Printf("[Output from Session %s]: %s", sessionID, outputString)
+	fmt.Printf("[Output from Session %s]: %s", sessionID, string(output))
 }
 
 // StartReading launches a goroutine to continuously read output
@@ -101,10 +102,8 @@ func StartReading(session *ShellSession, outputHandler func(output []byte, sessi
 			// Read blocks until data is available or the pipe closes
 			n, err := session.Stdout.Read(buf)
 			if n > 0 {
-				mu.Lock()
 				// Pass the read bytes to the handler for processing/logging/sending
 				outputHandler(buf[:n], session.ID, session)
-				mu.Unlock()
 			}
 
 			if err != nil {

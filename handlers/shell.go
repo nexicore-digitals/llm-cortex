@@ -13,6 +13,9 @@ var mu sync.Mutex
 
 // StartShellHandler spawns a new shell and returns its session ID
 func StartShellHandler(w http.ResponseWriter, r *http.Request) {
+	if len(sessions) >= 1 {
+		return
+	}
 	sessionID, err := spawn.NewShell(sessions)
 	if err != nil {
 		http.Error(w, "Failed to start shell", http.StatusInternalServerError)
