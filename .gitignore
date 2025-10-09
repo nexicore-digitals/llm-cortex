@@ -1,4 +1,8 @@
+llama.cpp/
+bin/
+
 # Ignore all model files
 models/*
+
 # But keep the folder structure
 !models/.gitkeep
