@@ -15,8 +15,14 @@ success() {
 }
 
 # --------Configuration----------
-# Check for existing llama.cpp build
-info "Checking for existing llama.cpp build"
+
+# Set up Python environment
+info "Running Python setup script..."
+if [ ! -x "python-setup.sh" ]; then
+    chmod +x ./python-setup.sh
+fi
+./python-setup.sh
+
 if [ -f "bin/llama-cli" ]; then
     if [ ! -x "bin/llama-cli" ]; then
         echo "adding execution permission for the llama-cli"
@@ -27,6 +33,9 @@ if [ -f "bin/llama-cli" ]; then
 fi
 
 info "configuring and setting up project dependencies..."
+
+# Check for existing llama.cpp build
+info "Checking for existing llama.cpp build"
 
 # Ensure Cmake is already installed 
 if ! command -v cmake &> /dev/null; then
@@ -89,5 +98,9 @@ rm -rf ./llama.cpp
 
 info "Adding execution permissions to binaries in bin/"
 find "bin" -type f -exec chmod 755 {} +
+
+info "Setting the LD_LIBRARY_PATH environment variable"
+echo 'export LD_LIBRARY_PATH=./bin' >> ~/.bashrc
+source ~/.bashrc
 
 success "setup complete, happy coding!"

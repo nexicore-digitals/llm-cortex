@@ -4,5 +4,13 @@ bin/
 # Ignore all model files
 models/*
 
+# Ignore all sample files
+samples/*
+
+# Ignore python venv
+venv 
+python_venv
+
 # But keep the folder structure
-!models/.gitkeep
+models/.gitkeep
+samples/.gitkeep
