@@ -8,8 +8,14 @@ models/*
 samples/*
 
 # Ignore python venv
+.env
 venv 
 python_venv
+
+# Python cache & compiled files
+/**/__pycache__/
+*.py[cod]
+*$py.class
 
 # But keep the folder structure
 models/.gitkeep
