@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"llm-cortex/handlers"
 	"llm-cortex/router"
+	"llm-cortex/utils"
 	"net/http"
 	"strings"
 )
@@ -31,10 +32,7 @@ func main() {
 
 	fmt.Println("Starting server at port 8080")
 	err := http.ListenAndServe(":8080", mux)
-	if err != nil {
-		panic(err)
-	}
-
+	utils.HandleError(err)
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {

@@ -68,7 +68,7 @@ class CLIPtionModel(nn.Module):
         self.clip = clip_model
         self.processor = processor
         self.device = next(clip_model.parameters()).device
-        self.tokenizer = processor.tokenizer
+        self.tokenizer = processor.tokenizer # type: ignore
 
         self.captioner = Captioner(config, vision_embed_dim=1024, vocab_size=self.tokenizer.vocab_size)
         self.text_projection = nn.Linear(768, 768, bias=False)
@@ -117,14 +117,14 @@ class CLIPtionModel(nn.Module):
         features = vision_outputs.last_hidden_state.to(device=device, dtype=images.dtype)
 
         # Global image embeddings from full CLIPModel
-        embeds = self.clip.get_image_features(images)
+        embeds = self.clip.get_image_features(images) # type: ignore
         embeds = embeds.to(device=device, dtype=images.dtype)
         embeds /= embeds.norm(dim=-1, keepdim=True)
 
         return features, embeds
 
     def _batch_generate(self, image_features: torch.Tensor, temperature: float, batch_size: int,
-                        seed: int = None, ramble: bool = False) -> torch.Tensor:
+                        seed: int = None, ramble: bool = False) -> torch.Tensor: # type: ignore
         tokenizer = self.tokenizer
         output_proj = self.output_projection
         token_embedding_ = self.clip.text_model.embeddings.token_embedding
@@ -147,7 +147,7 @@ class CLIPtionModel(nn.Module):
             pos_embeds = pos_embedding_(torch.arange(t, device=sequences.device))
             x = token_embeds + pos_embeds
 
-            mask = self.captioner.causal_mask[:t, :t]
+            mask = self.captioner.causal_mask[:t, :t] # type: ignore
             for layer in self.captioner.layers:
                 x = layer(x, memory, self_attn_mask=mask)
 
@@ -171,4 +171,4 @@ class CLIPtionModel(nn.Module):
         return sequences
 
     def _beam_search(self, image_features, image_embed, device, beam_width=4, ramble=False):
-        return [(0.0, self.tokenizer.decode(self._batch_generate(image_features, 1)[0], skip_special_tokens=True))]
+        return [(0.0, self.tokenizer.decode(self._batch_generate(image_features, 1)[0], skip_special_tokens=True))] # type: ignore
