@@ -1,42 +1,51 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "os"
-    "runtime"
-
-    "github.com/nexicore-digitals/llm-cortex/router/cortex"
+	"fmt"
+	"llm-cortex/handlers"
+	"llm-cortex/router"
+	"net/http"
+	"strings"
 )
 
 func main() {
-    var modelPath string
-    var prompt string
-    var tokens int
-    var threads int
+	mux := http.NewServeMux()
+	mux.HandleFunc("/serve", rootHandler)
 
-    flag.StringVar(&modelPath, "model", "./models/deepseek-7b/deepseek-llm-7b-chat.Q4_K_M.gguf", "Path to GGUF model")
-    flag.StringVar(&prompt, "prompt", "", "Prompt to send to the model")
-    flag.IntVar(&tokens, "tokens", 128, "Number of tokens to predict")
-    flag.IntVar(&threads, "threads", runtime.NumCPU(), "Number of threads to use")
-    flag.Parse()
+	os := http.FileServer(http.Dir("ui"))
+	mux.Handle("/", os)
 
-    if prompt == "" {
-        fmt.Println("Error: --prompt is required")
-        os.Exit(1)
-    }
+	mux.HandleFunc("/shell/start", handlers.StartShellHandler)
+	mux.HandleFunc("/shell/", func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/send"):
+			handlers.SendCommandHandler(w, r)
+		case strings.HasSuffix(r.URL.Path, "/stream"):
+			handlers.StreamOutputHandler(w, r)
+		case strings.HasSuffix(r.URL.Path, "/close"):
+			handlers.CloseShellHandler(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 
-    fmt.Printf("🧠 Loading model: %s\n", modelPath)
-    c, err := cortex.NewCortex(modelPath, threads, 0)
-    if err != nil {
-        fmt.Println("Error loading model:", err)
-        os.Exit(1)
-    }
+	fmt.Println("Starting server at port 8080")
+	err := http.ListenAndServe(":8080", mux)
+	if err != nil {
+		panic(err)
+	}
 
-    fmt.Printf("🚀 Running prompt: %s\n\n", prompt)
-    err = c.Run(prompt, tokens)
-    if err != nil {
-        fmt.Println("Error during inference:", err)
-        os.Exit(1)
-    }
+}
+
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	r.Header.Set("Content-type", "plain/text")
+	fmt.Fprint(w, "Hello from the go root router")
+	params := r.URL.Query()
+	for key, value := range params {
+		fmt.Printf("%s: %s\n", key, value)
+		if key == "run" && value[0] == "true" {
+			llmReply := router.InvokeLLM()
+			fmt.Printf("build: %s\nmodel: %s\nresponse: %s\ntimeElasped: %s\n", llmReply.Build, llmReply.Model, llmReply.Response, llmReply.TimeElasped)
+		}
+	}
 }

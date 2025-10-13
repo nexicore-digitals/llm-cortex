@@ -18,5 +18,5 @@ python_venv
 *$py.class
 
 # But keep the folder structure
-models/.gitkeep
-samples/.gitkeep
+!models/.gitkeep
+reply

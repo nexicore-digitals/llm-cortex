@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Shell Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 2rem;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #38bdf8;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        button.closebtn {
+            background: red;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .session-card {
+            background: #1e293b;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1.5rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .session-card h2 {
+            margin: 0 0 0.5rem;
+            font-size: 1.2rem;
+            color: #60a5fa;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .output {
+            background: #0f172a;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            color: #22c55e;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧠 LLM Shell Dashboard</h1>
+        <button id="startBtn">Spawn New Shell</button>
+        <div id="sessionContainer"></div>
+    </div>
+
+    <script>
+        const sessionContainer = document.getElementById('sessionContainer')
+
+        document.getElementById('startBtn').onclick = async () => {
+            const res = await fetch('/shell/start')
+            const { id } = await res.json()
+
+            const card = document.createElement('div')
+            card.className = 'session-card'
+            card.id = id
+            card.innerHTML = `
+        <h2>Session ${id}</h2>
+        <input type="text" placeholder="Enter command..." />
+        <button>Send</button>
+        <button class="closebtn">close</button>
+        <pre class="output">Waiting for output...</pre>
+      `
+
+            const input = card.querySelector('input')
+            const button = card.querySelector('button')
+            const closebtn = card.querySelectorAll('button')[1]
+            const output = card.querySelector('.output')
+
+            button.onclick = async () => {
+                await fetch(`/shell/${id}/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: input.value })
+                })
+                input.value = ''
+                const res = await fetch(`/shell/${id}/stream`, { keepalive: true })
+                output.textContent = await res.text();
+            }
+            closebtn.onclick = async () => {
+                await fetch(`/shell/${id}/close`)
+                document.getElementById(id).remove()
+            }
+
+            sessionContainer.appendChild(card)
+        }
+    </script>
+</body>
+
+</html>
