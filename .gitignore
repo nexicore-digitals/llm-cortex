@@ -1,5 +1,22 @@
+llama.cpp/
+bin/
+
 # Ignore all model files
 models/*
+
+# Ignore all sample files
+samples/*
+
+# Ignore python venv
+.env
+venv 
+python_venv
+
+# Python cache & compiled files
+/**/__pycache__/
+*.py[cod]
+*$py.class
+
 # But keep the folder structure
 !models/.gitkeep
 reply

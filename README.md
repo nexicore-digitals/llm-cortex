@@ -1,9 +1,17 @@
 # llm-cortex
 
-A modular shell for orchestrating local GGUF-based LLMs with swap-aware memory management, plugin-centric routing, and model lifecycle control.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Language: Go](https://img.shields.io/badge/Language-Go-blue.svg)
+![Language: Shell](https://img.shields.io/badge/Language-Shell-lightgrey.svg)
+![Language: Python](https://img.shields.io/badge/Language-Python-3776AB.svg)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
+
+A modular shell for orchestrating local models. It uses Go for GGUF-based LLMs and Python for other modalities like vision and audio, with swap-aware memory management, plugin-centric routing, and model lifecycle control.
+The Go application acts as the central orchestrator, calling standalone Python scripts for specific tasks like image captioning.
 
 ## Features
 
+- 🌐 **Multi-language Orchestration:** Uses Go for high-performance LLM management and calls standalone Python scripts for vision/audio tasks.
 - 🧠 Model registry with plugin intent mapping
 - 💾 Swap provisioning and memory-aware loading
 - 🔁 Sequential and fallback model orchestration
@@ -11,31 +19,39 @@ A modular shell for orchestrating local GGUF-based LLMs with swap-aware memory m
 
 ## Getting Started
 
-1. Provision swap (see `scripts/swap-monitor.sh`)
-2. Build `llama.cpp` and copy `llama-cli` here
-3. Place GGUF models in `models/`
-4. Run `go run router/cortex_shell.go`
+All you need to do is run the setup script. This will install all necessary dependencies, build the required binaries, and configure your environment.
+
+```bash
+chmod +x ./setup.sh
+./setup.sh
+```
+
+## Usage
+
+1. **Add GGUF models:** Place your GGUF-formatted models into the `models/` directory.
+2. **Provision swap (Optional):** If you plan on running large models, ensure you have enough swap space. A helper script is provided in `scripts/`.
+3. **Start the shell:** Run the main Go application to start the orchestrator.
+
+    ```bash
+    go run router/cortex_shell.go
+    ```
 
 ## Directory Structure
 
-```llm-cortex
-
 llm-cortex/
 ├── bin/                  # All binaries live here
-│   ├── llama-cli
-│   ├── llama-server
-│   └── llama-bench
 ├── models/               # GGUF models
+├── python/
+│   ├── models/
+│   │   └── vision/       # Python scripts for vision models (e.g., blip.py)
+│   └── requirements.txt  # Python dependencies
 ├── router/               # Go orchestration logic
-│   ├── cortex_shell.go
-│   ├── model_registry.go
-│   └── memory_manager.go
 ├── scripts/              # Bash helpers
-│   └── swap-monitor.sh
 ├── README.md
-└── LICENSE
-
-```
+├── LICENSE
+├── setup.sh              # Project setup and dependency installer
+├── python-setup.sh       # Python environment setup script
+└── llama-cli.sh          # Wrapper script for llama-cli
 
 ## models/
 

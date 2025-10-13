@@ -1,0 +1,11 @@
+# deps for running he blip-2 model
+torch
+transformers
+Pillow
+accelerate
+sentencepiece
+protobuf
+
+# deps for running the CLIPton model
+safetensors
+torchvision

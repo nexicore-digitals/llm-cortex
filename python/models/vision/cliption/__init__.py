@@ -1,0 +1,1 @@
+# This file makes the 'cliption' directory a Python package.
