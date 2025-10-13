@@ -17,7 +17,7 @@ from model import CLIPtionModel
 # ----------------------------
 def load_cliption(model_path: str, device: str = "cpu", dtype=torch.float16, use_fast: bool = True) -> CLIPtionModel:
     print(f"[CLIPtion] Loading processor and model from {model_path}...")
-    clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14", dtype=dtype).to(device)
+    clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14", dtype=dtype).to(device) # type: ignore
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", use_fast=use_fast)
 
     safetensor_file = os.path.join(model_path, "CLIPtion_20241219_fp16.safetensors")
@@ -70,7 +70,7 @@ def main():
         with Image.open(args.image_path) as img:
             image = img.convert("RGB")
 
-        inputs = model.processor(images=image, return_tensors="pt").to(device, dtype)
+        inputs = model.processor(images=image, return_tensors="pt").to(device, dtype) # type: ignore
         image_tensor = inputs["pixel_values"]  # [1, 3, 224, 224]
 
         # Generate caption

@@ -8,28 +8,20 @@ import (
 	"sync"
 )
 
-var sessions = make(map[string]*spawn.ShellSession)
 var mu sync.Mutex
 
 // StartShellHandler spawns a new shell and returns its session ID
 func StartShellHandler(w http.ResponseWriter, r *http.Request) {
-	if len(sessions) >= 1 {
-		return
-	}
-	sessionID, err := spawn.NewShell(sessions)
+	sessionID, err := spawn.NewShell()
 	if err != nil {
 		http.Error(w, "Failed to start shell", http.StatusInternalServerError)
-		return
-	}
-	session, ok := spawn.GetSession(sessions, sessionID)
-	if !ok {
-		http.Error(w, "Session not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"id": sessionID})
 
-	spawn.StartReading(session, spawn.OutputHandler)
+	// The output handler now needs the session object, which we get from the spawn manager
+	spawn.StartReading(sessionID, spawn.OutputHandler)
 
 }
 
@@ -40,7 +32,7 @@ func SendCommandHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing session ID", http.StatusBadRequest)
 		return
 	}
-	session, ok := spawn.GetSession(sessions, id)
+	session, ok := spawn.GetSession(id)
 	if !ok {
 		http.Error(w, "Session not found", http.StatusNotFound)
 		return
@@ -58,7 +50,7 @@ func SendCommandHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := spawn.SendCommand(sessions, id, payload.Command); err != nil {
+	if err := spawn.SendCommand(id, payload.Command); err != nil {
 		http.Error(w, "Failed to send command", http.StatusInternalServerError)
 		return
 	}
@@ -69,7 +61,7 @@ func SendCommandHandler(w http.ResponseWriter, r *http.Request) {
 // StreamOutputHandler returns the latest output from a shell session
 func StreamOutputHandler(w http.ResponseWriter, r *http.Request) {
 	id := extractID(r.URL.Path)
-	session, ok := spawn.GetSession(sessions, id)
+	session, ok := spawn.GetSession(id)
 	if !ok {
 		http.Error(w, "Session not found", http.StatusNotFound)
 		return
@@ -86,7 +78,7 @@ func StreamOutputHandler(w http.ResponseWriter, r *http.Request) {
 // CloseShellHandler gracefully shuts down a shell session
 func CloseShellHandler(w http.ResponseWriter, r *http.Request) {
 	id := extractID(r.URL.Path)
-	if err := spawn.CloseSession(sessions, id); err != nil {
+	if err := spawn.CloseSession(id); err != nil {
 		http.Error(w, "Failed to close session", http.StatusInternalServerError)
 		return
 	}

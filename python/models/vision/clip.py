@@ -27,7 +27,7 @@ class CLIPPlugin:
         with Image.open(image_path) as img:
             image = img.convert("RGB")
 
-        inputs = self.processor(text=texts, images=image, return_tensors="pt", padding=True).to(self.device, self.dtype)
+        inputs = self.processor(text=texts, images=image, return_tensors="pt", padding=True).to(self.device, self.dtype) # type: ignore
 
         with torch.no_grad():
             outputs = self.model(**inputs)

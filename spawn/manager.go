@@ -11,6 +11,7 @@ import (
 	uuid "github.com/google/uuid"
 )
 
+// ShellSession represents an active, interactive shell process.
 type ShellSession struct {
 	ID        string
 	Cmd       *exec.Cmd
@@ -20,9 +21,14 @@ type ShellSession struct {
 	OutputBuf bytes.Buffer
 }
 
-var mu sync.Mutex
+var (
+	mu       sync.Mutex
+	sessions = make(map[string]*ShellSession)
+)
 
-func NewShell(sessions map[string]*ShellSession) (string, error) {
+// NewShell creates, starts, and registers a new interactive bash session.
+// It returns the unique session ID for future interactions.
+func NewShell() (string, error) {
 	cmd := exec.Command("bash", "-i")
 
 	stdin, err := cmd.StdinPipe()
@@ -58,10 +64,11 @@ func NewShell(sessions map[string]*ShellSession) (string, error) {
 	return id, nil
 }
 
-// Helper function to send a command to a specific session ID
-func SendCommand(sessions map[string]*ShellSession, sessionID string, command string) error {
+// SendCommand writes a command string to the Stdin of a specific shell session.
+// The command should not include a newline character, as it is appended automatically.
+func SendCommand(sessionID string, command string) error {
 	mu.Lock()
-	session, ok := sessions[sessionID]
+	session, ok := sessions[sessionID] // Use package-level sessions
 	mu.Unlock()
 
 	if !ok {
@@ -77,23 +84,30 @@ func SendCommand(sessions map[string]*ShellSession, sessionID string, command st
 	return err
 }
 
-// This is the function that processes the raw byte output from the shell.
-// In a real application, this is where you'd integrate with a WebSocket
-// or a logging system.
+// OutputHandler is a default handler that processes raw byte output from the shell.
+// It appends the output to the session's buffer and prints it to the console.
 func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 	// Convert the raw bytes to a string for display
 	mu.Lock()
 	session.OutputBuf.Write(output)
 	mu.Unlock()
+
 	// Print the output clearly labeled with the session ID
 	fmt.Printf("[Output from Session %s]: %s", sessionID, string(output))
 }
 
-// StartReading launches a goroutine to continuously read output
-// from the shell's Stdout pipe until the pipe is closed (shell exits).
-// outputHandler is a function that processes the raw byte output.
-func StartReading(session *ShellSession, outputHandler func(output []byte, sessionID string, session *ShellSession)) {
+// StartReading launches a goroutine to continuously read from the shell's Stdout pipe.
+// It calls the provided outputHandler for each chunk of data read until the pipe is closed.
+func StartReading(sessionID string, outputHandler func(output []byte, sessionID string, session *ShellSession)) error {
 	// Use a buffer for efficient reading
+	mu.Lock()
+	session, ok := sessions[sessionID]
+	mu.Unlock()
+
+	if !ok {
+		return fmt.Errorf("session %s not found for starting reader", sessionID)
+	}
+
 	buf := make([]byte, 1024)
 	// Launch the dedicated reader goroutine
 	go func() {
@@ -119,12 +133,14 @@ func StartReading(session *ShellSession, outputHandler func(output []byte, sessi
 			}
 		}
 	}()
+	return nil
 }
 
-// Helper function to close a session
-func CloseSession(sessions map[string]*ShellSession, sessionID string) error {
+// CloseSession sends an 'exit' command to the shell, closes its pipes,
+// and waits for the process to terminate, releasing all resources.
+func CloseSession(sessionID string) error {
 	mu.Lock()
-	session, ok := sessions[sessionID]
+	session, ok := sessions[sessionID] // Use package-level sessions
 	delete(sessions, sessionID) // Remove from the map
 	mu.Unlock()
 
@@ -141,14 +157,21 @@ func CloseSession(sessions map[string]*ShellSession, sessionID string) error {
 	return session.Cmd.Wait()
 }
 
-func GetSession(sessions map[string]*ShellSession, sessionID string) (*ShellSession, bool) {
+// GetSession safely retrieves a session by its ID.
+func GetSession(sessionID string) (*ShellSession, bool) {
 	mu.Lock()
-	session, ok := sessions[sessionID]
+	session, ok := sessions[sessionID] // Use package-level sessions
 	mu.Unlock()
 	return session, ok
 }
 
-func IsRunning(session *ShellSession) bool {
+// IsRunning checks if the underlying process for a session is still active.
+func IsRunning(sessionID string) bool {
+	session, ok := GetSession(sessionID)
+	if !ok {
+		return false
+	}
+
 	// Check if the underlying process is still running.
 	// If Cmd.ProcessState is nil, it usually means the command is still running.
 	return session.Cmd.ProcessState == nil || !session.Cmd.ProcessState.Exited()
