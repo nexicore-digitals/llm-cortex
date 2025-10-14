@@ -3,7 +3,6 @@ package vision
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
@@ -18,8 +17,7 @@ type BlipResponse struct {
 }
 
 var (
-	blipSessions = make(map[string]string)
-	blipMutex    = &sync.Mutex{}
+	blipManager = NewModelManager()
 )
 
 const BLIP_JSON_DELIMITER = "END_OF_JSON"
@@ -48,35 +46,15 @@ type Blip struct {
 // in interactive mode. It returns a Blip struct instance which can be used to
 // send multiple prompts efficiently.
 func NewBlip(modelPath string, device string) (*Blip, error) {
-	blipMutex.Lock()
-	defer blipMutex.Unlock()
-
-	sessionID, ok := blipSessions[modelPath]
-	if !ok {
-		var err error
-		cmd := []string{
-			PythonVenvPath,
-			"python/models/vision/blip.py",
-			"--model-path", modelPath,
-			"--device", device,
-			"--interactive",
-		}
-		sessionID, err = spawn.NewShellWithCommand(cmd...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to start blip session: %w", err)
-		}
-		blipSessions[modelPath] = sessionID
-		spawn.StartReading(sessionID, spawn.OutputHandler, spawn.ErrorOutputHandler)
-
-		// Wait for the Python script to signal that the model is ready.
-		// This is more robust than a fixed time.Sleep().
-		err = spawn.WaitForString(sessionID, "[BLIP] Ready.", 120*time.Second) // 60-second timeout for model loading
-		if err != nil {
-			// Clean up the failed session
-			spawn.CloseSession(sessionID)
-			delete(blipSessions, modelPath)
-			return nil, fmt.Errorf("error waiting for BLIP model to load: %w", err)
-		}
+	sessionID, err := blipManager.Load(
+		modelPath,
+		device,
+		"python/models/vision/blip.py",
+		"[BLIP] Ready.",
+		120*time.Second,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Blip{
@@ -123,15 +101,9 @@ func (b *Blip) SendPrompt(imagePath string, prompt string, useFast bool, legacy 
 
 // UnloadModel terminates the persistent Python process and cleans up resources.
 func (b *Blip) UnloadBlipModel() error {
-	blipMutex.Lock()
-	defer blipMutex.Unlock()
-
-	if sessionID, ok := blipSessions[b.ModelPath]; ok {
-		err := spawn.CloseSession(sessionID)
-		if err != nil {
-			return fmt.Errorf("failed to close blip session %s: %w", sessionID, err)
-		}
-		delete(blipSessions, b.ModelPath)
+	err := blipManager.Unload(b.ModelPath)
+	if err != nil {
+		return fmt.Errorf("failed to close blip session for %s: %w", b.ModelPath, err)
 	}
 	return nil
 }

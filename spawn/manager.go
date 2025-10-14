@@ -22,6 +22,7 @@ type ShellSession struct {
 	CreatedAt time.Time
 	OutputBuf bytes.Buffer // Buffer for stdout
 	StderrBuf bytes.Buffer // Buffer for stderr
+	mu        sync.Mutex   // Mutex to protect this session's buffers
 }
 
 var (
@@ -186,9 +187,9 @@ func SendCommandAndWait(sessionID string, command string, delimiter string) (str
 // It appends the output to the session's buffer and prints it to the console.
 func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 	// Convert the raw bytes to a string for display
-	mu.Lock()
+	session.mu.Lock()
 	session.OutputBuf.Write(output)
-	mu.Unlock()
+	session.mu.Unlock()
 
 	// Print the output clearly labeled with the session ID
 	fmt.Printf("[Output from Session %s]: %s", sessionID, string(output))
@@ -197,9 +198,9 @@ func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 // ErrorOutputHandler is a handler that processes raw byte output from the shell's stderr.
 // It appends the output to the session's StderrBuf and prints it to the console as an error.
 func ErrorOutputHandler(output []byte, sessionID string, session *ShellSession) {
-	mu.Lock()
+	session.mu.Lock()
 	session.StderrBuf.Write(output)
-	mu.Unlock()
+	session.mu.Unlock()
 
 	// Print the error output clearly labeled with the session ID
 	fmt.Printf("[Error from Session %s]: %s", sessionID, string(output))
@@ -347,8 +348,8 @@ func WaitForString(sessionID string, target string, timeout time.Duration) error
 }
 
 func checkBufferForDelimiter(session *ShellSession, delimiter string) (string, bool) {
-	mu.Lock()
-	defer mu.Unlock()
+	session.mu.Lock()
+	defer session.mu.Unlock()
 	output := session.OutputBuf.String()
 	if strings.Contains(output, delimiter) {
 		return strings.Split(output, delimiter)[0], true

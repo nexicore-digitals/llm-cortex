@@ -17,7 +17,8 @@ func CliptionExample() {
 	// Load the model
 	cliptionInstance, err := vision.NewCLIPtion(modelPath, device)
 	if err != nil {
-		log.Fatalf("Failed to load CLIPtion model: %v", err)
+		log.Printf("Failed to load CLIPtion model: %v", err)
+		return
 	}
 
 	defer cliptionInstance.UnloadCLIPtionModel()
@@ -27,7 +28,8 @@ func CliptionExample() {
 	// Send a prompt to the loaded model using beam search for higher quality
 	response, err := cliptionInstance.SendPrompt(imagePath, true, true, 5, 5, 1.0)
 	if err != nil {
-		log.Fatalf("Failed to send prompt to CLIPtion model: %v", err)
+		log.Printf("Failed to send prompt to CLIPtion model: %v", err)
+		return
 	}
 
 	fmt.Println("--- CLIPtion Response ---")

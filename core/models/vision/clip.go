@@ -3,7 +3,6 @@ package vision
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
@@ -17,8 +16,7 @@ type ClipResponse struct {
 }
 
 var (
-	clipSessions = make(map[string]string)
-	clipMutex    = &sync.Mutex{}
+	clipManager = NewModelManager()
 )
 
 const CLIP_JSON_DELIMITER = "END_OF_JSON"
@@ -48,34 +46,15 @@ type Clip struct {
 // in interactive mode. It returns a Clip struct instance which can be used to
 // send multiple prompts efficiently.
 func NewClip(modelPath string, device string) (*Clip, error) {
-	clipMutex.Lock()
-	defer clipMutex.Unlock()
-
-	sessionID, ok := clipSessions[modelPath]
-	if !ok {
-		var err error
-		cmd := []string{
-			PythonVenvPath,
-			"python/models/vision/clip.py",
-			"--model-path", modelPath,
-			"--interactive",
-			"--device", device,
-		}
-		sessionID, err = spawn.NewShellWithCommand(cmd...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to start clip session: %w", err)
-		}
-		clipSessions[modelPath] = sessionID
-		spawn.StartReading(sessionID, spawn.OutputHandler, spawn.ErrorOutputHandler)
-
-		// Wait for the Python script to signal that the model is ready.
-		err = spawn.WaitForString(sessionID, "[CLIP] Ready.", 90*time.Second) // 90-second timeout
-		if err != nil {
-			// Clean up the failed session
-			spawn.CloseSession(sessionID)
-			delete(clipSessions, modelPath)
-			return nil, fmt.Errorf("error waiting for CLIP model to load: %w", err)
-		}
+	sessionID, err := clipManager.Load(
+		modelPath,
+		device,
+		"python/models/vision/clip.py",
+		"[CLIP] Ready.",
+		90*time.Second,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Clip{
@@ -119,15 +98,9 @@ func (c *Clip) SendPrompt(imagePath string, texts []string, useFast bool) (ClipR
 
 // UnloadModel terminates the persistent Python process and cleans up resources.
 func (c *Clip) UnloadClipModel() error {
-	clipMutex.Lock()
-	defer clipMutex.Unlock()
-
-	if sessionID, ok := clipSessions[c.ModelPath]; ok {
-		err := spawn.CloseSession(sessionID)
-		if err != nil {
-			return fmt.Errorf("failed to close clip session %s: %w", sessionID, err)
-		}
-		delete(clipSessions, c.ModelPath)
+	err := clipManager.Unload(c.ModelPath)
+	if err != nil {
+		return fmt.Errorf("failed to close clip session for %s: %w", c.ModelPath, err)
 	}
 	return nil
 }

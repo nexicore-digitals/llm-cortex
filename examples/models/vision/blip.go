@@ -18,13 +18,14 @@ func BlipExample() {
 	// Load the model (starts the persistent Python process)
 	blipResponse, err := vision.InvokeBlip(modelPath, imagePath, prompt, true, false, 75, device)
 	if err != nil {
-		log.Fatalf("Failed to load BLIP model: %v", err)
+		log.Printf("Failed to run BLIP model: %v", err)
+		return
 	}
 
 	fmt.Printf("Model loaded. Sending prompt for image: %s\n", imagePath)
 
 	if err != nil {
-		log.Fatalf("Failed to send prompt to BLIP model: %v", err)
+		log.Printf("Failed to send prompt to BLIP model: %v", err)
 	}
 
 	fmt.Println("--- BLIP Response ---")

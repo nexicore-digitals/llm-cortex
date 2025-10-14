@@ -3,7 +3,6 @@ package vision
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
@@ -17,8 +16,7 @@ type CLIPtionResponse struct {
 }
 
 var (
-	cliptionSessions = make(map[string]string)
-	cliptionMutex    = &sync.Mutex{}
+	cliptionManager = NewModelManager()
 )
 
 const CLIPTION_JSON_DELIMITER = "END_OF_JSON"
@@ -47,34 +45,15 @@ type CLIPtion struct {
 // in interactive mode. It returns a CLIPtion struct instance which can be used to
 // send multiple prompts efficiently.
 func NewCLIPtion(modelPath string, device string) (*CLIPtion, error) {
-	cliptionMutex.Lock()
-	defer cliptionMutex.Unlock()
-
-	sessionID, ok := cliptionSessions[modelPath]
-	if !ok {
-		var err error
-		cmd := []string{
-			PythonVenvPath,
-			"python/models/vision/cliption/cliption.py",
-			"--model-path", modelPath,
-			"--interactive",
-			"--device", device,
-		}
-		sessionID, err = spawn.NewShellWithCommand(cmd...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to start cliption session: %w", err)
-		}
-		cliptionSessions[modelPath] = sessionID
-		spawn.StartReading(sessionID, spawn.OutputHandler, spawn.ErrorOutputHandler)
-
-		// Wait for the Python script to signal that the model is ready.
-		err = spawn.WaitForString(sessionID, "[CLIPtion] Ready.", 90*time.Second) // 90-second timeout for model loading
-		if err != nil {
-			// Clean up the failed session
-			spawn.CloseSession(sessionID)
-			delete(cliptionSessions, modelPath)
-			return nil, fmt.Errorf("error waiting for CLIPtion model to load: %w", err)
-		}
+	sessionID, err := cliptionManager.Load(
+		modelPath,
+		device,
+		"python/models/vision/cliption/cliption.py",
+		"[CLIPtion] Ready.",
+		90*time.Second,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &CLIPtion{
@@ -122,15 +101,9 @@ func (c *CLIPtion) SendPrompt(imagePath string, useFast bool, beamSearch bool, b
 
 // UnloadModel terminates the persistent Python process and cleans up resources.
 func (c *CLIPtion) UnloadCLIPtionModel() error {
-	cliptionMutex.Lock()
-	defer cliptionMutex.Unlock()
-
-	if sessionID, ok := cliptionSessions[c.ModelPath]; ok {
-		err := spawn.CloseSession(sessionID)
-		if err != nil {
-			return fmt.Errorf("failed to close cliption session %s: %w", sessionID, err)
-		}
-		delete(cliptionSessions, c.ModelPath)
+	err := cliptionManager.Unload(c.ModelPath)
+	if err != nil {
+		return fmt.Errorf("failed to close cliption session for %s: %w", c.ModelPath, err)
 	}
 	return nil
 }

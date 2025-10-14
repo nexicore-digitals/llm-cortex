@@ -2,48 +2,21 @@ package main
 
 import (
 	"fmt"
-	"llm-cortex/handlers"
-	"llm-cortex/router"
-	"llm-cortex/utils"
-	"net/http"
-	"strings"
+
+	"github.com/owen-6936/llm-cortex/examples/models/vision"
+	"github.com/owen-6936/llm-cortex/scheduler"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/serve", rootHandler)
+	// Example of running all vision models in parallel using the new scheduler.
+	fmt.Println("--- Running All Vision Models in Parallel ---")
+	taskRunner := scheduler.NewTaskRunner(
+		vision.BlipExample,
+		vision.ClipExample,
+		vision.CliptionExample,
+	)
+	taskRunner.Run()
+	fmt.Println("--- All Vision Models Finished ---")
 
-	os := http.FileServer(http.Dir("ui"))
-	mux.Handle("/", os)
-
-	mux.HandleFunc("/shell/start", handlers.StartShellHandler)
-	mux.HandleFunc("/shell/", func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/send"):
-			handlers.SendCommandHandler(w, r)
-		case strings.HasSuffix(r.URL.Path, "/stream"):
-			handlers.StreamOutputHandler(w, r)
-		case strings.HasSuffix(r.URL.Path, "/close"):
-			handlers.CloseShellHandler(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
-
-	fmt.Println("Starting server at port 8080")
-	err := http.ListenAndServe(":8080", mux)
-	utils.HandleError(err)
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	r.Header.Set("Content-type", "plain/text")
-	fmt.Fprint(w, "Hello from the go root router")
-	params := r.URL.Query()
-	for key, value := range params {
-		fmt.Printf("%s: %s\n", key, value)
-		if key == "run" && value[0] == "true" {
-			llmReply := router.InvokeLLM()
-			fmt.Printf("build: %s\nmodel: %s\nresponse: %s\ntimeElasped: %s\n", llmReply.Build, llmReply.Model, llmReply.Response, llmReply.TimeElasped)
-		}
-	}
+	// The web server logic can be added back here if needed.
 }

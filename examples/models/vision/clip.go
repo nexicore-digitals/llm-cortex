@@ -18,7 +18,8 @@ func ClipExample() {
 	// Load the model
 	clipInstance, err := vision.NewClip(modelPath, device)
 	if err != nil {
-		log.Fatalf("Failed to load CLIP model: %v", err)
+		log.Printf("Failed to load CLIP model: %v", err)
+		return
 	}
 	defer clipInstance.UnloadClipModel()
 
@@ -27,7 +28,8 @@ func ClipExample() {
 	// Send a prompt to the loaded model
 	response, err := clipInstance.SendPrompt(imagePath, texts, true)
 	if err != nil {
-		log.Fatalf("Failed to send prompt to CLIP model: %v", err)
+		log.Printf("Failed to send prompt to CLIP model: %v", err)
+		return
 	}
 
 	fmt.Println("--- CLIP Response ---")

@@ -5,12 +5,15 @@ import (
 )
 
 func main() {
-	// Running Blip Model...
-	vision.BlipExample()
+	// Running all vision models in parallel
+	vision.ParallelLoadExample()
 
-	// Running CLIP Model...
-	vision.ClipExample()
+	// // Running Blip Model...
+	// vision.BlipExample()
 
-	// Running CLIPtion Model...
-	vision.CliptionExample()
+	// // Running CLIP Model...
+	// vision.ClipExample()
+
+	// // Running CLIPtion Model...
+	// vision.CliptionExample()
 }
