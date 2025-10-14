@@ -171,4 +171,4 @@ class CLIPtionModel(nn.Module):
         return sequences
 
     def _beam_search(self, image_features, image_embed, device, beam_width=4, ramble=False):
-        return [(0.0, self.tokenizer.decode(self._batch_generate(image_features, 1)[0], skip_special_tokens=True))] # type: ignore
+        return [(0.0, self.tokenizer.decode(self._batch_generate(image_features,1, batch_size=1)[0], skip_special_tokens=True,))] # type: ignore

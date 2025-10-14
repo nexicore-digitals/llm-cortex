@@ -8,7 +8,6 @@ import sys
 from typing import Dict
 
 
-
 class BlipPlugin:
     def __init__(self, model_path: str, device: str = "cpu", dtype=torch.float32, use_fast: bool = True, legacy: bool = True):
         self.device = device
@@ -24,7 +23,7 @@ class BlipPlugin:
             device_map=self.device if self.device != "cpu" else "auto",
             dtype=self.dtype
         )
-        print("[BLIP] Ready.")
+        print("[BLIP] Ready.", flush=True)
     def invoke(self, image_path: str, prompt: str = "", max_length: int = 50) -> Dict[str, str | float]:
         """
         Runs BLIP-2 FLAN-T5-XL on the given image and prompt.
@@ -58,23 +57,47 @@ def main():
     Main function to run the BLIP model from the command line.
     """
     parser = argparse.ArgumentParser(description="Run BLIP-2 inference on an image.")
-    parser.add_argument("--model-path", required=True, help="Path to the local BLIP model directory.")
-    parser.add_argument("--image-path", required=True, help="Path to the input image.")
-    parser.add_argument("--prompt", default="", help="Optional prompt for the model.")
-    parser.add_argument("--use-fast", action="store_true", help="Use fast image processor if available.")
-    parser.add_argument("--max-length", type=int, default=75, help="Maximum number of tokens to generate.")
-    parser.add_argument("--no-legacy", action="store_false", dest="legacy", help="Use new tokenizer behavior instead of legacy.")
-    
-    # 
+    parser.add_argument("--model-path", type=str, required=True, help="Path to the local BLIP model directory.")
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode.")
+    # Non-interactive mode arguments
+    parser.add_argument("--image-path", type=str, help="Path to the input image (for non-interactive mode).")
+    parser.add_argument("--device", type=str, help="Device to use for inference, e.g., 'cpu' or 'cuda'.")
+    parser.add_argument("--prompt", type=str, default="", help="Optional prompt for the model (for non-interactive mode).")
+    parser.add_argument("--use-fast", action="store_true", help="Use fast image processor if available (for non-interactive mode).")
+    parser.add_argument("--max-length", type=int, default=75, help="Maximum number of tokens to generate (for non-interactive mode).")
+    parser.add_argument("--no-legacy", action="store_false", dest="legacy", help="Use new tokenizer behavior instead of legacy (for non-interactive mode).")
     args = parser.parse_args()
 
     try:
-        # Initialize and run the plugin
-        plugin = BlipPlugin(model_path=args.model_path, device="cuda" if torch.cuda.is_available() else "cpu", use_fast=args.use_fast, legacy=args.legacy)
-        result = plugin.invoke(image_path=args.image_path, prompt=args.prompt, max_length=args.max_length)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        plugin = BlipPlugin(model_path=args.model_path, device=device)
 
-        # Print the result as a JSON string to stdout
-        print(json.dumps(result, indent=2))
+        if args.interactive:
+            for line in sys.stdin:
+                try:
+                    input_data = json.loads(line)
+                    if input_data.get("command") == "exit":
+                        sys.exit(0)
+
+                    # The processor is loaded once, so we can't change these per request,
+                    # but we can honor them on the first interactive request if needed.
+                    # For now, we just ensure the invoke call gets the right params.
+                    result = plugin.invoke(
+                        image_path=input_data.get("image_path"),
+                        prompt=input_data.get("prompt", ""),
+                        max_length=input_data.get("max_length", 75)
+                    )
+                    print(json.dumps(result), flush=True)
+                    print("END_OF_JSON", flush=True)
+                except json.JSONDecodeError:
+                    # Ignore invalid JSON lines
+                    pass
+                except Exception as e:
+                    print(json.dumps({"error": str(e)}), flush=True)
+                    print("END_OF_JSON", flush=True)
+        else:
+            result = plugin.invoke(image_path=args.image_path, prompt=args.prompt, max_length=args.max_length)
+            print(json.dumps(result, indent=2))
 
     except FileNotFoundError:
         error_msg = {"error": f"Image or model not found. Searched for image at '{args.image_path}' and model at '{args.model_path}'."}

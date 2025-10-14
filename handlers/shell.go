@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"llm-cortex/spawn"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/owen-6936/llm-cortex/spawn"
 )
 
 var mu sync.Mutex
@@ -21,7 +22,7 @@ func StartShellHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"id": sessionID})
 
 	// The output handler now needs the session object, which we get from the spawn manager
-	spawn.StartReading(sessionID, spawn.OutputHandler)
+	spawn.StartReading(sessionID, spawn.OutputHandler, spawn.ErrorOutputHandler)
 
 }
 
