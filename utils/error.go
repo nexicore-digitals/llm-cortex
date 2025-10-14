@@ -1,11 +1,37 @@
 package utils
 
-import "log"
+import (
+	"log"
+	"os"
+)
 
-// HandleError checks if an error is not nil and panics if it is.
-// This is a simple utility for handling critical errors that should stop execution.
-func HandleError(err error) {
-	if err != nil {
-		log.Panicf("A critical error occurred: %v", err)
+// HandleError handles errors with optional context and fatal flag.
+// If context is empty, the error's string is used as context.
+// If fatal is false (default), the program continues after logging.
+func HandleError(err error, args ...interface{}) {
+	if err == nil {
+		return
+	}
+
+	// Default values
+	context := err.Error()
+	fatal := false
+
+	// Parse optional arguments
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case string:
+			context = v
+		case bool:
+			fatal = v
+		}
+	}
+
+	// Log the error
+	log.Printf("[ERROR] %s: %v", context, err)
+
+	// Exit if fatal
+	if fatal {
+		os.Exit(1)
 	}
 }

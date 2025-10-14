@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
+	"github.com/owen-6936/llm-cortex/utils"
 )
 
 // CLIPtionResponse represents the JSON output from the cliption.py script.
@@ -75,9 +76,7 @@ func (c *CLIPtion) SendPrompt(imagePath string, useFast bool, beamSearch bool, b
 		"temperature": temperature,
 	}
 	jsonRequest, err := json.Marshal(request)
-	if err != nil {
-		return CLIPtionResponse{}, fmt.Errorf("failed to marshal cliption request: %w", err)
-	}
+	utils.HandleError(err, "failed to marshal cliption request")
 
 	output, err := spawn.SendCommandAndWait(c.SessionID, string(jsonRequest), CLIPTION_JSON_DELIMITER)
 	if err != nil {

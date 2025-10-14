@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
+	"github.com/owen-6936/llm-cortex/utils"
 )
 
 // ClipResponse represents the JSON output from the clip.py script.
@@ -72,9 +73,7 @@ func (c *Clip) SendPrompt(imagePath string, texts []string, useFast bool) (ClipR
 		"texts":      texts,
 	}
 	jsonRequest, err := json.Marshal(request)
-	if err != nil {
-		return ClipResponse{}, fmt.Errorf("failed to marshal clip request: %w", err)
-	}
+	utils.HandleError(err, "failed to marshal clip request")
 
 	output, err := spawn.SendCommandAndWait(c.SessionID, string(jsonRequest), CLIP_JSON_DELIMITER)
 	if err != nil {

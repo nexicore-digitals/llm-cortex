@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/owen-6936/llm-cortex/spawn"
+	"github.com/owen-6936/llm-cortex/utils"
 )
 
 // BlipResponse represents the JSON output from the blip.py script.
@@ -74,9 +75,7 @@ func (b *Blip) SendPrompt(imagePath string, prompt string, useFast bool, legacy 
 		"max_length": maxLength,
 	}
 	jsonRequest, err := json.Marshal(request)
-	if err != nil {
-		return BlipResponse{}, fmt.Errorf("failed to marshal blip request: %w", err)
-	}
+	utils.HandleError(err, "failed to marshal blip request")
 
 	// Send command and wait for response
 	output, err := spawn.SendCommandAndWait(b.SessionID, string(jsonRequest), BLIP_JSON_DELIMITER)
