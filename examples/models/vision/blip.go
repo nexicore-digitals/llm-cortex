@@ -24,10 +24,6 @@ func BlipExample() {
 
 	fmt.Printf("Model loaded. Sending prompt for image: %s\n", imagePath)
 
-	if err != nil {
-		log.Printf("Failed to send prompt to BLIP model: %v", err)
-	}
-
 	fmt.Println("--- BLIP Response ---")
 	fmt.Printf("Caption: %s\n", blipResponse.Caption)
 	fmt.Printf("Latency: %.2f seconds\n", blipResponse.Latency)

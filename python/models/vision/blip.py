@@ -76,9 +76,6 @@ def main():
             for line in sys.stdin:
                 try:
                     input_data = json.loads(line)
-                    if input_data.get("command") == "exit":
-                        sys.exit(0)
-
                     # The processor is loaded once, so we can't change these per request,
                     # but we can honor them on the first interactive request if needed.
                     # For now, we just ensure the invoke call gets the right params.

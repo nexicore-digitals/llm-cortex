@@ -158,6 +158,10 @@ func SendCommandAndWait(sessionID string, command string, delimiter string) (str
 	// Append a newline to ensure the shell executes the command
 	commandWithNewline := command + "\n"
 
+	// Wait for a few milliseconds before writing the next command
+	time.Sleep(200 * time.Millisecond)
+
+
 	// Write the command bytes to the shell's input pipe
 	_, err := session.Stdin.Write([]byte(commandWithNewline))
 	if err != nil {
@@ -167,8 +171,46 @@ func SendCommandAndWait(sessionID string, command string, delimiter string) (str
 	// Wait for the response by polling the buffer until the delimiter is found.
 	// This is a simple polling mechanism. For high-performance scenarios,
 	// a condition variable or channel-based approach might be more efficient.
-	timeout := time.After(30 * time.Second) // 30-second timeout for the command to respond
+	timeout := time.After(300 * time.Second) // 5-minute timeout for the command to respond
 	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return "", fmt.Errorf("timed out waiting for response delimiter: %s", delimiter)
+		case <-tick.C:
+			if output, ok := checkBufferForDelimiter(session, delimiter); ok {
+				return output, nil
+			}
+		}
+	}
+}
+
+// SendCommandFromReady sends a command after the initial "Ready" state and waits for a delimiter.
+// This is specifically for processes that print a ready prompt (like '>') and then wait for the first command.
+// It captures the output produced *after* the command is sent.
+func SendCommandFromReady(sessionID string, command string, delimiter string) (string, error) {
+	mu.Lock()
+	session, ok := sessions[sessionID]
+	mu.Unlock()
+
+	if !ok {
+		return "", fmt.Errorf("shell session %s not found", sessionID)
+	}
+
+	// Do not reset the buffer, as it contains the initial ready prompt.
+	// Instead, we will capture the output from this point forward.
+
+	commandWithNewline := command + "\n"
+	_, err := session.Stdin.Write([]byte(commandWithNewline))
+	if err != nil {
+		return "", err
+	}
+
+	// Wait for the response by polling the buffer until the delimiter is found.
+	timeout := time.After(180 * time.Second) // 3-minute timeout for the command to respond
+	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
 
 	for {
@@ -192,7 +234,7 @@ func OutputHandler(output []byte, sessionID string, session *ShellSession) {
 	session.mu.Unlock()
 
 	// Print the output clearly labeled with the session ID
-	fmt.Printf("[Output from Session %s]: %s", sessionID, string(output))
+	fmt.Print(string(output))
 }
 
 // ErrorOutputHandler is a handler that processes raw byte output from the shell's stderr.
@@ -203,7 +245,18 @@ func ErrorOutputHandler(output []byte, sessionID string, session *ShellSession) 
 	session.mu.Unlock()
 
 	// Print the error output clearly labeled with the session ID
-	fmt.Printf("[Error from Session %s]: %s", sessionID, string(output))
+	fmt.Print(string(output))
+}
+
+// InfoOutputHandler is a handler that processes raw byte output from the shell's stderr
+// and logs it as informational. This is useful for processes that write non-error
+// information (like progress or logs) to stderr.
+func InfoOutputHandler(output []byte, sessionID string, session *ShellSession) {
+	session.mu.Lock()
+	session.StderrBuf.Write(output)
+	session.mu.Unlock()
+
+	fmt.Print(string(output))
 }
 
 // StartReading launches a goroutine to continuously read from the shell's Stdout pipe.
@@ -282,11 +335,10 @@ func CloseSession(sessionID string) error {
 		return fmt.Errorf("shell session %s not found", sessionID)
 	}
 
-	// 1. Send a JSON exit command to gracefully shut down the Python script.
-	// The script is designed to exit when it receives this command.
-	// This avoids pipe closing issues that can affect subsequent process spawns.
-	exitCommand := `{"command": "exit"}` + "\n"
-	session.Stdin.Write([]byte(exitCommand))
+	// 1. Close the Stdin pipe. For interactive processes that read from stdin
+	// (like our Python scripts and llama-cli), this sends an EOF signal.
+	// This is the standard and most robust way to signal termination.
+	session.Stdin.Close()
 
 	// 2. Wait for the command to finish and release resources
 	// This blocks until the shell process terminates
@@ -352,7 +404,14 @@ func checkBufferForDelimiter(session *ShellSession, delimiter string) (string, b
 	defer session.mu.Unlock()
 	output := session.OutputBuf.String()
 	if strings.Contains(output, delimiter) {
-		return strings.Split(output, delimiter)[0], true
+		parts := strings.Split(output, delimiter)
+		// If delimiter is found, there will be at least two parts.
+		// The content we want is everything *before* the last occurrence of the delimiter.
+		if len(parts) > 1 {
+			// Join all but the last part, in case the output itself contains the delimiter
+			content := strings.Join(parts[:len(parts)-1], delimiter)
+			return content, true
+		}
 	}
 	return "", false
 }

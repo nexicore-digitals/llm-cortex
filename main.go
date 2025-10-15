@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	llm_example "github.com/owen-6936/llm-cortex/examples/models/llm"
+
 	"github.com/owen-6936/llm-cortex/examples/models/vision"
 	"github.com/owen-6936/llm-cortex/handlers"
 	"github.com/owen-6936/llm-cortex/router"
@@ -19,6 +21,7 @@ func main() {
 		vision.BlipExample,
 		vision.ClipExample,
 		vision.CliptionExample,
+		llm_example.QwenExample,
 	)
 	taskRunner.Run()
 	fmt.Println("--- All Vision Models Finished ---")
