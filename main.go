@@ -22,6 +22,7 @@ func main() {
 		vision.ClipExample,
 		vision.CliptionExample,
 		llm_example.QwenExample,
+		llm_example.StarcoderExample,
 	)
 	taskRunner.Run()
 	fmt.Println("--- All Vision Models Finished ---")

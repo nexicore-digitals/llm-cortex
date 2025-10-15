@@ -159,7 +159,7 @@ func SendCommandAndWait(sessionID string, command string, delimiter string) (str
 	commandWithNewline := command + "\n"
 
 	// Wait for a few milliseconds before writing the next command
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 
 	// Write the command bytes to the shell's input pipe

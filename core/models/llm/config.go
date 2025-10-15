@@ -13,7 +13,7 @@ type Settings struct {
 	NPredict      int
 	NoMMap        bool
 	BatchSize     int
-	JinjaTemplate string
+	Jinja         bool
 	// Add other general parameters here as needed.
 }
 
@@ -39,9 +39,8 @@ func (s *Settings) ToArgs(interactive bool) []string {
 	if s.NoMMap {
 		args = append(args, "--no-mmap")
 	}
-	if s.JinjaTemplate != "" {
-		// Assuming llama-cli will have a --jinja flag
-		// args = append(args, "--jinja", s.JinjaTemplate)
+	if s.Jinja {
+		args = append(args, "--jinja")
 	}
 
 	return args
@@ -57,6 +56,7 @@ func Performance(modelPath, prompt string, nPredict int) Settings {
 		NPredict:  nPredict,
 		NoMMap:    true,
 		BatchSize: 4096,
+		Jinja: true,
 	}
 }
 
@@ -69,5 +69,6 @@ func Balanced(modelPath, prompt string, nPredict int) Settings {
 		NPredict:  nPredict,
 		NoMMap:    false,
 		BatchSize: 512, // Default llama.cpp batch size
+		Jinja: true,
 	}
 }

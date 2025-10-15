@@ -9,6 +9,8 @@ func main() {
 	// Running all llms in parallel
 	llm.QwenExample()
 
+	llm.StarcoderExample()
+
 	// Running all vision models in parallel
 	vision.ParallelLoadExample()
 
