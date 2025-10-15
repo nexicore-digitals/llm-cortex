@@ -14,6 +14,75 @@ success() {
   echo -e "\e[1;32m$1\e[0m"
 }
 
+# --- Swap File Logic ---
+handle_swap() {
+    # First, check if a swapfile already exists
+    if [ -f "/swapfile" ]; then
+        if swapon --show | grep -q "/swapfile"; then
+            info "Swap file /swapfile already exists and is active."
+            swapon --show
+            return
+        else
+            info "Swap file /swapfile already exists but is not currently active."
+            read -p "Would you like to activate it? (y/N): " -r choice
+            if [[ "$choice" =~ ^[Yy]$ ]]; then
+                info "Activating existing swap file. This requires sudo privileges."
+                sudo swapon /swapfile
+                success "Swap file activated."
+                swapon --show
+            fi
+            # Whether activated or not, our job here is done.
+            return
+        fi
+    fi
+
+    # Check total RAM in GB
+    local total_ram_gb
+    total_ram_gb=$(free -g | awk '/^Mem:/{print $2}')
+
+    # Check if the root partition is on an SSD (1 means rotational, 0 means non-rotational/SSD)
+    local is_ssd=0
+    local root_device
+    root_device=$(df / | awk 'NR==2 {print $1}')
+    # Follow symlinks to get the real device, e.g., /dev/dm-0 -> /dev/nvme0n1p2
+    local real_device
+    real_device=$(ls -l "$root_device" | awk '{print $NF}')
+    if [[ "$real_device" == *"nvme"* || "$real_device" == *"sd"* ]]; then
+        # Extract the base device name (e.g., nvme0n1, sda)
+        local base_device
+        base_device=$(echo "$real_device" | sed -E 's/p[0-9]+$//' | sed -E 's/[0-9]+$//' | xargs basename)
+        if [ -f "/sys/block/$base_device/queue/rotational" ]; then
+            if [ "$(cat "/sys/block/$base_device/queue/rotational")" -eq 1 ]; then
+                is_ssd=1 # It's a rotational HDD
+            fi
+        fi
+    fi
+
+    if [ "$is_ssd" -eq 0 ]; then
+        info "System appears to be running on an SSD."
+        if [ "$total_ram_gb" -lt 16 ]; then
+            info "You have ${total_ram_gb}GB of RAM. To prevent out-of-memory errors when running large models, creating a swap file (4GB-16GB recommended) can act as a safety net."
+        else
+            info "You have ${total_ram_gb}GB of RAM. Creating a swap file is optional, but can provide a safety net for exceptionally large models."
+        fi
+
+        read -p "Would you like to create a swap file? (y/N): " -r choice
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            read -p "Enter the desired swap file size (e.g., 8G, 16G recommended): " -r swap_size
+            if [ -z "$swap_size" ]; then
+                error "No size entered. Skipping swap creation."
+            else
+                info "Attempting to create a ${swap_size} swap file. This requires sudo privileges."
+                sudo ./scripts/setup_swap.sh --size "$swap_size"
+            fi
+        else
+            info "Skipping swap file creation."
+        fi
+    else
+        info "System appears to be running on a rotational HDD. Swap file is not recommended for performance."
+    fi
+}
+
 # --------Configuration----------
 
 # Set up Python environment
@@ -22,6 +91,17 @@ if [ ! -x "python-setup.sh" ]; then
     chmod +x ./python-setup.sh
 fi
 ./python-setup.sh
+
+info "Checking permissions for swap scripts..."
+if [ -f "scripts/setup_swap.sh" ] && [ ! -x "scripts/setup_swap.sh" ]; then
+    chmod +x scripts/setup_swap.sh
+fi
+if [ -f "scripts/teardown_swap.sh" ] && [ ! -x "scripts/teardown_swap.sh" ]; then
+    chmod +x scripts/teardown_swap.sh
+fi
+
+info "Checking system memory and storage for swap file recommendation..."
+handle_swap
 
 if [ -f "bin/llama-cli" ]; then
     if [ ! -x "bin/llama-cli" ]; then
