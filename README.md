@@ -45,6 +45,7 @@ chmod +x ./setup.sh
 
 ## Directory Structure
 
+```folder structure
 llm-cortex/
 ├── core/
 │   └── models/
@@ -84,6 +85,7 @@ llm-cortex/
 ├── setup.sh              # Project setup and dependency installer
 ├── python-setup.sh       # Python environment setup script
 └── main.go               # Main application entry point
+```
 
 ## models/
 
