@@ -1,0 +1,28 @@
+# Central configuration for the LLM-Cortex application.
+
+python_venv_path: "/home/owen/repos/llm-cortex/python_venv/bin/python3"
+server_port: "8080"
+
+models:
+  - name: "blip"
+    type: "blip"
+    path: "models/blip2-flan-t5-xl"
+    device: "cpu"
+
+  - name: "clip"
+    type: "clip"
+    path: "models/clip-vit-b-32"
+    device: "cpu"
+
+  - name: "cliption"
+    type: "cliption"
+    path: "models/CLIPtion"
+    device: "cpu"
+
+  - name: "qwen-coder"
+    type: "gguf"
+    path: "models/qwen/Qwen2.5-Coder-7B-Instruct-Q6_K_L.gguf"
+
+  - name: "starcoder"
+    type: "gguf"
+    path: "models/starcoder/starcoder2-15b-instruct-v0.1-Q4_K_M.gguf"
