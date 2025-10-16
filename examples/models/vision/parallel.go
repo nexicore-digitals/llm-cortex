@@ -9,7 +9,7 @@ func ParallelLoadExample() {
 
 	// Define the list of example functions to run in parallel.
 	examples := []func(){
-		BlipExample,
+		// BlipExample,
 		ClipExample,
 		CliptionExample,
 	}

@@ -71,9 +71,6 @@ def main():
             for line in sys.stdin:
                 try:
                     input_data = json.loads(line)
-                    if input_data.get("command") == "exit":
-                        sys.exit(0)
-
                     result = plugin.invoke(
                         image_path=input_data.get("image_path"),
                         texts=input_data.get("texts", [])
